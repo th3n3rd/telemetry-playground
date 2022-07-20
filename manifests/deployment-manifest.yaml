@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: telemetry
+  name: telemetry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telemetry
+  template:
+    metadata:
+      labels:
+        app: telemetry
+    spec:
+      containers:
+      - image: telemetry:0.0.1-SNAPSHOT
+        name: telemetry
+        readinessProbe:
+          httpGet:
+            port: 8080
+            path: /actuator/health/readiness
+          initialDelaySeconds: 20
+        livenessProbe:
+          httpGet:
+            port: 8080
+            path: /actuator/health/liveness
+          initialDelaySeconds: 20
+        resources: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: telemetry
+  name: telemetry
+spec:
+  ports:
+  - name: api
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: telemetry
+  type: ClusterIP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: telemetry
+  labels:
+    monitored-by: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: telemetry
+  endpoints:
+  - port: api
+    path: '/actuator/prometheus'
+    interval: 10s
+    honorLabels: true
